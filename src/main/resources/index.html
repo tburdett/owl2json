@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        margin: auto;
+    }
+
+    h2 {
+        padding-left: 10px;
+    }
+
+    path {
+        stroke: #fff;
+        fill-rule: evenodd;
+    }
+
+    .tooltip {
+        font-size: 0.7em;
+        position: absolute;
+        text-align: center;
+        padding: 2px;
+        z-index: 10;
+        background: lightsteelblue;
+        border: 0;
+        border-radius: 2px;
+    }
+
+</style>
+<body>
+<h2>Ontology Term Distribution in GWAS</h2>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="colorbrewer.js"></script>
+<script>
+    var w = window,
+            d = document,
+            e = d.documentElement,
+            g = d.getElementsByTagName('body')[0],
+            width = (w.innerWidth || e.clientWidth || g.clientWidth) - 20,
+            height = (w.innerHeight || e.clientHeight || g.clientHeight) - 100;
+
+    var linkPrefix = "http://www.ebi.ac.uk/fgpt/zooma/sparql?query=PREFIX+rdf%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%3E%0D%0APREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23%3E%0D%0APREFIX+owl%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0D%0APREFIX+dc%3A+%3Chttp%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%3E%0D%0APREFIX+obo%3A+%3Chttp%3A%2F%2Fpurl.obolibrary.org%2Fobo%2F%3E%0D%0APREFIX+efo%3A+%3Chttp%3A%2F%2Fwww.ebi.ac.uk%2Fefo%2F%3E%0D%0APREFIX+zoomaresource%3A+%3Chttp%3A%2F%2Frdf.ebi.ac.uk%2Fresource%2Fzooma%2F%3E%0D%0APREFIX+zoomaterms%3A+%3Chttp%3A%2F%2Frdf.ebi.ac.uk%2Fterms%2Fzooma%2F%3E%0D%0APREFIX+oac%3A+%3Chttp%3A%2F%2Fwww.openannotation.org%2Fns%2F%3E%0D%0A%0D%0ASELECT+%3Fdatapoint+%3Fkeyword+%3Fontologylabel+WHERE+%7B%0D%0A++%3Fannotationid+rdf%3Atype+oac%3ADataAnnotation+%3B%0D%0A++++++++++++++++oac%3AhasBody+%3Fsemantictag+%3B+%0D%0A++++++++++++++++oac%3AhasBody+%3Fproperty+%3B%0D%0A++++++++++++++++dc%3Asource+%3Fsource+%3B%0D%0A++++++++++++++++oac%3AhasTarget+%3Fdatapointid+.%0D%0A++%0D%0A++%3Fsemantictag+rdf%3Atype+oac%3ASemanticTag+%3B%0D%0A+++++++++++++++rdfs%3Alabel+%3Fontologylabel+.%0D%0A++%0D%0A++%3Fproperty+rdf%3Atype+zoomaterms%3AProperty+%3B%0D%0A++++++++++++zoomaterms%3ApropertyValue+%3Fkeyword+.%0D%0A++%0D%0A++%3Fdatapointid+rdfs%3Alabel+%3Fdatapoint%0D%0A%0D%0A++FILTER+%28%3Fsource+%3D+%3Chttp%3A%2F%2Fwww.genome.gov%2Fgwastudies%3E%29+.%0D%0A++FILTER+%28%3Fsemantictag+%3D+%3C";
+    var linkSuffix = "%3E%29+.%0D%0A%7D%0D%0A&render=HTML&limit=25&offset=0";
+
+    var radius = Math.min(width, height) / 2;
+
+    var x = d3.scale.linear()
+            .range([0, 2 * Math.PI]);
+
+    var y = d3.scale.sqrt()
+            .range([0, radius]);
+
+    var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", "translate(" + width / 2 + "," + (height / 2 + 10) + ")");
+
+    var partition = d3.layout.partition()
+            .sort(null)
+            .value(function(d) { return d.size; });
+
+    var arc = d3.svg.arc()
+            .startAngle(function(d) {
+                            return Math.max(0, Math.min(2 * Math.PI, x(d.x)));
+                        })
+            .endAngle(function(d) {
+                          return Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx)));
+                      })
+            .innerRadius(function(d) {
+                             return Math.max(0, y(d.y));
+                         })
+            .outerRadius(function(d) {
+                             return Math.max(0, y(d.y + d.dy));
+                         });
+
+    var tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip");
+
+//    var color = d3.scale.category20();
+        var color = d3.scale.ordinal().range(colorbrewer.Set3[11]);
+
+    // Keep track of the node that is currently being displayed as the root.
+    var node;
+
+    d3.json("output.json", function(error, root) {
+        node = root;
+        var path = svg.datum(root).selectAll("path")
+                .data(partition.nodes)
+                .enter().append("path")
+                .attr("d", arc)
+                .attr("title", function(d) { return d.name; })
+                .style("fill", function(d) {
+                             return color(d.name);
+                       })
+                .on("click", click)
+//                .on("dblclick", function(d) { window.open(linkPrefix + encodeURIComponent(d.uri) + linkSuffix); })
+                .on("mouseover", function(d){ tooltip.transition()
+                                               .style("opacity", 0.9);
+                                              tooltip.html(d.name + " (" + d.size + ")")
+                                                      .style("left", (d3.event.pageX) + 15 + "px")
+                                                      .style("top", (d3.event.pageY) + 15 + "px"); })
+                .on("mousemove", function(d) { tooltip
+                                               .style("left", (d3.event.pageX) + 15 + "px")
+                                               .style("top", (d3.event.pageY) + 15 + "px"); })
+                .on("mouseout", function(d) { tooltip.transition()
+                                               .style("opacity", 0); })
+                .each(stash);
+
+        function click(d) {
+            node = d;
+            path.transition()
+                    .duration(1000)
+                    .attrTween("d", arcTweenZoom(d));
+        }
+    });
+
+    d3.select(self.frameElement).style("height", height + "px");
+
+    // Setup for switching data: stash the old values for transition.
+    function stash(d) {
+        d.x0 = d.x;
+        d.dx0 = d.dx;
+    }
+
+    // When switching data: interpolate the arcs in data space.
+    function arcTweenData(a, i) {
+        var oi = d3.interpolate({x: a.x0, dx: a.dx0}, a);
+
+        function tween(t) {
+            var b = oi(t);
+            a.x0 = b.x;
+            a.dx0 = b.dx;
+            return arc(b);
+        }
+
+        if (i == 0) {
+            // If we are on the first arc, adjust the x domain to match the root node
+            // at the current zoom level. (We only need to do this once.)
+            var xd = d3.interpolate(x.domain(), [node.x, node.x + node.dx]);
+            return function(t) {
+                x.domain(xd(t));
+                return tween(t);
+            };
+        }
+        else {
+            return tween;
+        }
+    }
+
+    // When zooming: interpolate the scales.
+    function arcTweenZoom(d) {
+        var xd = d3.interpolate(x.domain(), [d.x, d.x + d.dx]),
+                yd = d3.interpolate(y.domain(), [d.y, 1]),
+                yr = d3.interpolate(y.range(), [d.y ? 20 : 0, radius]);
+        return function(d, i) {
+            return i
+                    ? function(t) {
+                return arc(d);
+            }
+                    : function(t) {
+                x.domain(xd(t));
+                y.domain(yd(t)).range(yr(t));
+                return arc(d);
+            };
+        };
+    }
+
+</script>
