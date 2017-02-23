@@ -1,6 +1,6 @@
 #!/bin/sh
 
-base=${0%/*}/..;
+base="$(dirname "$(readlink -f "$0")")"/..;
 current=`pwd`;
 java=java;
 #args="-Dorg.xml.sax.driver=uk.ac.ebi.fgpt.zooma.xml.ZoomaXMLReaderProxy -Xmx2g -DentityExpansionLimit=1000000000";

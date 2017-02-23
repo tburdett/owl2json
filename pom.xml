@@ -5,7 +5,7 @@
 
     <groupId>uk.ac.ebi.fgpt</groupId>
     <artifactId>owl2json</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
     <packaging>jar</packaging>
 
     <name>owl2json</name>
