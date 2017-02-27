@@ -14,6 +14,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Driver class for invoking OWL to JSON conversion.  Uses POSIX style arguments.
@@ -35,6 +37,9 @@ public class OWL2JSONDriver {
     private static boolean _useZooma;
     private static URI _zoomaDatasource;
 
+    private static boolean _useCsv;
+    private static Path _csvPath;
+
     public static void main(String[] args) {
         try {
             int statusCode = parseArguments(args);
@@ -53,6 +58,9 @@ public class OWL2JSONDriver {
                     OntologyHierarchyNodeCounter counter;
                     if (_zoomaDatasource != null) {
                         counter = driver.createOntologyHierarchyNodeCounter(_zoomaDatasource);
+                    }
+                    else if (_useCsv) {
+                        counter = driver.createOntologyHierarchNodeCounter(_csvPath);
                     }
                     else {
                         counter = driver.createOntologyHierarchyNodeCounter(_useZooma);
@@ -179,6 +187,18 @@ public class OWL2JSONDriver {
                 else {
                     _useZooma = false;
                 }
+
+                // check useCsv flag - optional, defaults to false
+                if (cl.hasOption("c")) {
+                    _useCsv = true;
+                    System.out.print("Using CSV to get data counts");
+                    _csvPath = Paths.get(cl.getOptionValue("c"));
+                    System.out.print(": file = '" + _csvPath.toString() + "'");
+                    System.out.println("");
+                }
+                else {
+                    _useZooma = false;
+                }
             }
         }
         catch (ParseException e) {
@@ -258,6 +278,16 @@ public class OWL2JSONDriver {
                         "Use ZOOMA - use to acquire data counts from ZOOMA when evaluating the size of nodes.  You can optionally supply the URI of a datasource from ZOOMA to restrict to")
                 .create("z");
         options.addOption(zoomaOption);
+
+
+        Option csvOption = OptionBuilder
+                .withArgName("File")
+                .withLongOpt("csv")
+                .hasOptionalArg()
+                .withDescription(
+                        "Use a CSV file - use to acquire data counts from a CSV file when evaluating the size of nodes.  You must supply the path of a file to load counts from")
+                .create("c");
+        options.addOption(csvOption);
         return options;
     }
 
@@ -283,6 +313,10 @@ public class OWL2JSONDriver {
 
     public OntologyHierarchyNodeCounter createOntologyHierarchyNodeCounter(URI zoomaDatasource) {
         return new ZoomaNodeCounter(zoomaDatasource);
+    }
+
+    public OntologyHierarchyNodeCounter createOntologyHierarchNodeCounter(Path csvPath){
+        return new CsvNodeCounter(csvPath);
     }
 
     public OntologyLoader createOntologyLoader(File ontologyFile,

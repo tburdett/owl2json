@@ -2,16 +2,13 @@ package uk.ac.ebi.fgpt.owl2json;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * An {@link uk.ac.ebi.fgpt.owl2json.OntologyHierarchyNodeCounter} that performs a ZOOMA lookup to obtain the counts of
@@ -21,7 +18,7 @@ import java.util.Map;
  * @author Tony Burdett
  * @date 18/08/14
  */
-public class ZoomaNodeCounter implements OntologyHierarchyNodeCounter {
+public class ZoomaNodeCounter extends AbstractLookupNodeCounter {
     private static final URI defaultDatasource = URI.create("http://www.genome.gov/gwastudies");
 
     private static final String queryPrefix =
@@ -29,72 +26,52 @@ public class ZoomaNodeCounter implements OntologyHierarchyNodeCounter {
     private static final String querySuffix =
             "%3E)%20.%0D%0A%7D%0D%0AGROUP%20BY%20%3Fsemantictag%0D%0AORDER%20BY%20DESC(%3Fdatapoints)%0D%0A&format=JSON&inference=false";
 
-    private final Map<URI, Integer> zoomaCounts;
-
-    private final Logger log = LoggerFactory.getLogger(getClass());
-
-    protected Logger getLog() {
-        return log;
-    }
+    private final URL zoomaQueryUrl;
 
     public ZoomaNodeCounter() {
         this(defaultDatasource);
     }
 
     public ZoomaNodeCounter(URI zoomaDatasource) {
-        zoomaCounts = new HashMap<>();
-
         // setup params
         try {
             getLog().debug("Utilizing ZOOMA datasource '" + zoomaDatasource + "'");
             String escapedDatasource = URLEncoder.encode(zoomaDatasource.toString(), "UTF-8");
-            doZoomaCountsLookup(URI.create(queryPrefix + escapedDatasource + querySuffix).toURL());
+            zoomaQueryUrl = URI.create(queryPrefix + escapedDatasource + querySuffix).toURL();
         }
         catch (UnsupportedEncodingException e) {
             throw new IllegalArgumentException(
                     "Cannot escape '" + defaultDatasource.toString() + ": " + e.getMessage(), e);
         }
-        catch (IOException e) {
-            throw new RuntimeException("Unable to create a ZoomaNodeCounter - communication with ZOOMA failed", e);
+        catch (MalformedURLException e) {
+            throw new IllegalArgumentException(
+                    "Cannot convert query into a URL - check your datasource? " +
+                            "[" + zoomaDatasource.toString() + "]: " + e.getMessage(), e);
         }
     }
 
-    @Override public int count(OntologyHierarchyNode node) {
-        int size;
-        if (zoomaCounts.containsKey(node.getURI())) {
-            size = zoomaCounts.get(node.getURI());
-        }
-        else {
-            size = 0;
-        }
-
-        // total this and all child terms
-        int totalChildSize = 0;
-        for (OntologyHierarchyNode childNode : node.getChildren()) {
-            totalChildSize += childNode.getSize();
-        }
-        return size + totalChildSize;
-
-    }
-
-    private void doZoomaCountsLookup(URL zoomaQuery) throws IOException {
+    void lookupCounts() throws IOException {
         // despatch query and parse response using jackson
-        getLog().debug("Despatching ZOOMA query: " + zoomaQuery);
+        getLog().debug("Despatching ZOOMA query: " + zoomaQueryUrl);
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode dataNode = mapper.readTree(zoomaQuery);
+        JsonNode dataNode = mapper.readTree(zoomaQueryUrl);
         getLog().trace("ZOOMA response: " + dataNode.toString());
 
         // results.binding[] -> each uri/count mapping
         JsonNode bindingsNode = dataNode.get("results").get("bindings");
         int datapointsCount = 0;
+        int urisCount = 0;
         for (JsonNode bindingNode : bindingsNode) {
             URI nodeURI = URI.create(bindingNode.get("semantictag").get("value").asText());
             Integer count = bindingNode.get("datapoints").get("value").asInt();
-            datapointsCount += count;
-            zoomaCounts.put(nodeURI, count);
+            setCount(nodeURI, count);
             getLog().trace("Got next result: " + nodeURI.toString() + " -> " + count);
+            datapointsCount += count;
+            if (count > 0) {
+                urisCount++;
+            }
         }
-        getLog().debug("Fetched " + datapointsCount + " datapoints for " + zoomaCounts.keySet().size() + " terms " +
+        getLog().debug("Fetched " + datapointsCount + " datapoints for " + urisCount + " terms " +
                                "from ZOOMA");
     }
 }
