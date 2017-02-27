@@ -37,8 +37,10 @@
             d = document,
             e = d.documentElement,
             g = d.getElementsByTagName('body')[0],
-            width = (w.innerWidth || e.clientWidth || g.clientWidth) - 20,
-            height = (w.innerHeight || e.clientHeight || g.clientHeight) - 100;
+            canvasWidth = (w.innerWidth || e.clientWidth || g.clientWidth),
+            canvasHeight = (w.innerHeight || e.clientHeight || g.clientHeight),
+            width = canvasWidth - 20,
+            height = canvasHeight - 100;
 
     var linkPrefix = "http://www.ebi.ac.uk/fgpt/zooma/sparql?query=PREFIX+rdf%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%3E%0D%0APREFIX+rdfs%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23%3E%0D%0APREFIX+owl%3A+%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0D%0APREFIX+dc%3A+%3Chttp%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%3E%0D%0APREFIX+obo%3A+%3Chttp%3A%2F%2Fpurl.obolibrary.org%2Fobo%2F%3E%0D%0APREFIX+efo%3A+%3Chttp%3A%2F%2Fwww.ebi.ac.uk%2Fefo%2F%3E%0D%0APREFIX+zoomaresource%3A+%3Chttp%3A%2F%2Frdf.ebi.ac.uk%2Fresource%2Fzooma%2F%3E%0D%0APREFIX+zoomaterms%3A+%3Chttp%3A%2F%2Frdf.ebi.ac.uk%2Fterms%2Fzooma%2F%3E%0D%0APREFIX+oac%3A+%3Chttp%3A%2F%2Fwww.openannotation.org%2Fns%2F%3E%0D%0A%0D%0ASELECT+%3Fdatapoint+%3Fkeyword+%3Fontologylabel+WHERE+%7B%0D%0A++%3Fannotationid+rdf%3Atype+oac%3ADataAnnotation+%3B%0D%0A++++++++++++++++oac%3AhasBody+%3Fsemantictag+%3B+%0D%0A++++++++++++++++oac%3AhasBody+%3Fproperty+%3B%0D%0A++++++++++++++++dc%3Asource+%3Fsource+%3B%0D%0A++++++++++++++++oac%3AhasTarget+%3Fdatapointid+.%0D%0A++%0D%0A++%3Fsemantictag+rdf%3Atype+oac%3ASemanticTag+%3B%0D%0A+++++++++++++++rdfs%3Alabel+%3Fontologylabel+.%0D%0A++%0D%0A++%3Fproperty+rdf%3Atype+zoomaterms%3AProperty+%3B%0D%0A++++++++++++zoomaterms%3ApropertyValue+%3Fkeyword+.%0D%0A++%0D%0A++%3Fdatapointid+rdfs%3Alabel+%3Fdatapoint%0D%0A%0D%0A++FILTER+%28%3Fsource+%3D+%3Chttp%3A%2F%2Fwww.genome.gov%2Fgwastudies%3E%29+.%0D%0A++FILTER+%28%3Fsemantictag+%3D+%3C";
     var linkSuffix = "%3E%29+.%0D%0A%7D%0D%0A&render=HTML&limit=25&offset=0";
@@ -52,8 +54,8 @@
             .range([0, radius]);
 
     var svg = d3.select("body").append("svg")
-            .attr("width", width)
-            .attr("height", height)
+            .attr("width", canvasWidth)
+            .attr("height", canvasHeight)
             .append("g")
             .attr("transform", "translate(" + width / 2 + "," + (height / 2 + 10) + ")");
 
